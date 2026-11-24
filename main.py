@@ -80,11 +80,21 @@ def validate(text: str) -> list[str]:
         )
     if len(text) > MAX_CHARS:
         problems.append(f"length {len(text)} chars, gate allows 1-{MAX_CHARS}")
-    if text and not _is_emoji(ord(text[0])):
-        problems.append(
-            f"character U+{ord(text[0]):04X} ({unicodedata.name(text[0], '?')}) "
-            "is not an emoji"
-        )
+    # Check EVERY character, not just the first: the docstring promises
+    # no variation selector, joiner or skin-tone modifier anywhere, but
+    # testing text[0] alone let a second character smuggle one in.
+    for ch in text:
+        cp = ord(ch)
+        if cp in (0xFE0F, 0x200D) or 0x1F3FB <= cp <= 0x1F3FF:
+            problems.append(
+                f"character U+{cp:04X} is a modifier/joiner/selector, "
+                "not a standalone emoji"
+            )
+        elif not _is_emoji(cp):
+            problems.append(
+                f"character U+{cp:04X} ({unicodedata.name(ch, '?')}) "
+                "is not an emoji"
+            )
     if any(ch.isspace() for ch in text):
         problems.append("entry contains whitespace (must be exactly one emoji)")
     if text != text.strip():
